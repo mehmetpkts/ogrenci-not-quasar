@@ -1,44 +1,47 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="column q-gutter-md">
-      <q-card>
-        <q-card-section>
-          <div class="text-h6">Öğrenciler</div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-          <pre class="q-ma-none">{{ j(ogrenciler) }}</pre>
-        </q-card-section>
-      </q-card>
+  <q-page class="q-pa-md bg-grey-2">
+    <div class="q-mx-auto" style="max-width: 1200px">
+      <div class="row items-center q-mb-md">
+        <q-icon name="school" size="lg" color="primary" />
+        <h4 class="q-ma-none q-ml-md text-weight-bold text-primary">
+          Öğrenci Bilgi Sistemi
+        </h4>
+      </div>
 
-      <q-card>
-        <q-card-section>
-          <div class="text-h6">Eğitmenler</div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-          <pre class="q-ma-none">{{ j(egitmenler) }}</pre>
-        </q-card-section>
-      </q-card>
+      <q-card class="q-mt-md">
+        <q-tabs
+          v-model="tab"
+          class="text-grey"
+          active-color="primary"
+          indicator-color="primary"
+          align="justify"
+          narrow-indicator
+        >
+          <q-tab name="ogrenciler" label="Öğrenciler" icon="groups" />
+          <q-tab name="egitmenler" label="Eğitmenler" icon="person" />
+          <q-tab name="dersler" label="Dersler" icon="menu_book" />
+          <q-tab name="notlar" label="Notlar" icon="grading" />
+        </q-tabs>
 
-      <q-card>
-        <q-card-section>
-          <div class="text-h6">Dersler</div>
-        </q-card-section>
         <q-separator />
-        <q-card-section>
-          <pre class="q-ma-none">{{ j(dersler) }}</pre>
-        </q-card-section>
-      </q-card>
 
-      <q-card>
-        <q-card-section>
-          <div class="text-h6">Notlar</div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-          <pre class="q-ma-none">{{ j(notlar) }}</pre>
-        </q-card-section>
+        <q-tab-panels v-model="tab" animated>
+          <q-tab-panel name="ogrenciler" class="q-pa-none">
+            <OgrencilerCard id="ogrenciler" :data="ogrenciler" title="Öğrenciler" />
+          </q-tab-panel>
+
+          <q-tab-panel name="egitmenler" class="q-pa-none">
+            <EgitmenlerCard id="egitmenler" :data="egitmenler" title="Eğitmenler" />
+          </q-tab-panel>
+
+          <q-tab-panel name="dersler" class="q-pa-none">
+            <DerslerCard id="dersler" :data="dersler" title="Dersler" />
+          </q-tab-panel>
+
+          <q-tab-panel name="notlar" class="q-pa-none">
+            <NotlarCard id="notlar" :data="notlar" title="Notlar" />
+          </q-tab-panel>
+        </q-tab-panels>
       </q-card>
     </div>
   </q-page>
@@ -47,13 +50,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import OgrencilerCard from 'components/OgrencilerCard.vue'
+import EgitmenlerCard from 'components/EgitmenlerCard.vue'
+import DerslerCard from 'components/DerslerCard.vue'
+import NotlarCard from 'components/NotlarCard.vue'
 
+const tab = ref('ogrenciler')
 const ogrenciler = ref([])
 const egitmenler = ref([])
 const dersler = ref([])
 const notlar = ref([])
-
-const j = (v) => JSON.stringify(v, null, 2)
 
 onMounted(() => {
   Promise.all([
@@ -62,10 +68,36 @@ onMounted(() => {
     axios.get('http://localhost:8000/api/dersler'),
     axios.get('http://localhost:8000/api/notlar')
   ]).then(([ogr, egt, drs, nt]) => {
-    ogrenciler.value = ogr.data
-    egitmenler.value = egt.data
-    dersler.value = drs.data
-    notlar.value = nt.data
+    // Kaynak dizileri al
+    const ogrArr = Array.isArray(ogr.data) ? ogr.data : (ogr?.data?.data || [])
+    const egtArr = Array.isArray(egt.data) ? egt.data : (egt?.data?.data || [])
+    const drsArr = Array.isArray(drs.data) ? drs.data : (drs?.data?.data || [])
+    const ntArr  = Array.isArray(nt.data)  ? nt.data  : (nt?.data?.data  || [])
+
+    // Lookup map'leri
+    const mapById = (arr) => arr.reduce((m, x) => { if (x && x.id != null) m[x.id] = x; return m }, {})
+    const ogrMap = mapById(ogrArr)
+    const egtMap = mapById(egtArr)
+    const drsMap = mapById(drsArr)
+
+    // Dersleri egitmen ile zenginleştir
+    const drsEnriched = drsArr.map(d => ({
+      ...d,
+      egitmen: d && (d.egitmen_id != null) ? egtMap[d.egitmen_id] || null : null,
+    }))
+
+    // Notlari ogrenci ve ders ile zenginleştir
+    const ntEnriched = ntArr.map(n => ({
+      ...n,
+      ogrenci: n && (n.ogrenci_id != null) ? ogrMap[n.ogrenci_id] || null : null,
+      ders:    n && (n.ders_id != null)    ? drsMap[n.ders_id]    || null : null,
+    }))
+
+    // State'e yaz
+    ogrenciler.value = ogrArr
+    egitmenler.value = egtArr
+    dersler.value = drsEnriched
+    notlar.value = ntEnriched
   })
 })
 </script>
