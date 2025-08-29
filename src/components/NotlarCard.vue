@@ -1,81 +1,106 @@
 <template>
   <div>
+    <q-card-section class="row items-center q-pb-sm">
+      <div class="text-h6">{{ title }}</div>
+      <q-space />
+      <q-btn color="primary" icon="add" label="Yeni Ekle" @click="openAddDialog" />
+    </q-card-section>
+
     <q-card-section>
-      <!-- Boş durum -->
       <div v-if="isEmpty" class="text-center text-grey-6 q-pa-lg">
         <q-icon name="inbox" size="lg" />
         <div class="text-h6 q-mt-sm">Veri bulunamadı</div>
-        <div class="text-caption">Bu bölüm için gösterilecek veri yok.</div>
       </div>
 
-      <!-- Dizi + Nesne: Tablo -->
       <q-table
         v-else-if="isArrayOfObjects"
         flat
         :rows="rows"
         :columns="columns"
-        row-key="__row_key"
-        :pagination="{ rowsPerPage: 10 }"
+        row-key="id"
       >
         <template #body-cell-actions="props">
           <q-td :props="props">
-            <q-btn flat round color="primary" icon="visibility" size="sm" @click="openDetails(props.row)">
-              <q-tooltip>Detayları Gör</q-tooltip>
-            </q-btn>
+            <q-btn flat round color="primary" icon="visibility" size="sm" @click="openDetails(props.row)" />
+            <q-btn flat round color="negative" icon="delete" size="sm" @click="openDeleteDialog(props.row)" />
           </q-td>
         </template>
       </q-table>
-
-      <!-- Dizi + Primitive: Liste -->
-      <q-list v-else-if="Array.isArray(data)" separator>
-        <q-item v-for="(item, idx) in data" :key="idx">
-          <q-item-section>{{ item }}</q-item-section>
-          <q-item-section side>
-            <q-btn flat round color="primary" icon="visibility" size="sm" @click="openDetails(item)">
-              <q-tooltip>Detayları Gör</q-tooltip>
-            </q-btn>
-          </q-item-section>
-        </q-item>
-      </q-list>
-
-      <!-- Tekil Nesne: Key-Value -->
-      <q-list v-else separator>
-        <q-item v-for="(val, key) in filteredObject(data)" :key="key">
-          <q-item-section>
-            <q-item-label overline class="text-grey-7">{{ key }}</q-item-label>
-            <q-item-label>{{ val }}</q-item-label>
-          </q-item-section>
-        </q-item>
-        <q-item>
-          <q-item-section>
-            <q-btn outline color="primary" label="Tüm Alanları Gör" @click="openDetails(data)" />
-          </q-item-section>
-        </q-item>
-      </q-list>
     </q-card-section>
 
     <!-- Detay Dialog -->
-    <q-dialog v-model="showDialog">
-      <q-card style="min-width: 600px; max-width: 90vw">
+    <q-dialog v-model="showDetailsDialog">
+      <q-card style="min-width: 600px">
         <q-card-section class="row items-center bg-primary text-white q-py-sm">
           <div class="text-h6">{{ title }} Detayları</div>
           <q-space />
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
-        <q-separator />
         <q-card-section class="q-pt-md">
-          <q-list bordered separator v-if="detailAsObject">
-            <q-item v-for="(v, k) in selectedAllFields" :key="k">
-              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ k }}</q-item-section>
+          <q-list bordered separator v-if="selectedItem">
+            <q-item v-for="(val, key) in selectedItem" :key="key">
+              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ key }}</q-item-section>
               <q-item-section>
-                <pre class="q-ma-none" style="white-space: pre-wrap">{{ v }}</pre>
+                <pre class="q-ma-none" style="white-space: pre-wrap">{{ val }}</pre>
               </q-item-section>
             </q-item>
           </q-list>
-          <div v-else>
-            <pre class="q-ma-none" style="white-space: pre-wrap">{{ selectedAllFields }}</pre>
-          </div>
         </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Ekle Dialog -->
+    <q-dialog v-model="showAddDialog" persistent>
+      <q-card style="min-width: 400px">
+        <q-card-section class="row items-center bg-primary text-white q-py-sm">
+          <div class="text-h6">Yeni Not Ekle</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <q-form @submit="onSave" class="q-gutter-md q-pa-md">
+            <q-select
+              v-model="newItem.ogrenci_id"
+              :options="ogrencilerOptions"
+              label="Öğrenci"
+              filled
+              dense
+              emit-value
+              map-options
+            />
+            <q-select
+              v-model="newItem.ders_id"
+              :options="derslerOptions"
+              label="Ders"
+              filled
+              dense
+              emit-value
+              map-options
+            />
+            <q-input v-model.number="newItem.puan" type="number" label="Puan" filled dense />
+            <div class="q-pt-md">
+              <q-btn label="Kaydet" type="submit" color="primary" />
+              <q-btn label="İptal" flat class="q-ml-sm" v-close-popup />
+            </div>
+          </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Silme Onay Dialog -->
+    <q-dialog v-model="showDeleteDialog" persistent>
+      <q-card>
+        <q-card-section class="row items-center">
+          <q-avatar icon="warning" color="negative" text-color="white" />
+          <span class="q-ml-sm text-h6">Silme Onayı</span>
+        </q-card-section>
+        <q-card-section>
+          Bu kaydı kalıcı olarak silmek istediğinizden emin misiniz?
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="İptal" color="primary" v-close-popup />
+          <q-btn label="Evet, Sil" color="negative" @click="onDeleteConfirm" />
+        </q-card-actions>
       </q-card>
     </q-dialog>
   </div>
@@ -83,81 +108,96 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import axios from 'axios'
 
 const props = defineProps({
-  data: {
-    type: [Array, Object, String, Number, Boolean, null],
-    default: () => [],
-  },
-  title: {
-    type: String,
-    default: 'Başlık'
-  }
+  data: { type: Array, default: () => [] },
+  ogrenciler: { type: Array, default: () => [] },
+  dersler: { type: Array, default: () => [] },
+  title: { type: String, default: 'Başlık' },
 })
 
-const showDialog = ref(false)
-const selectedAllFields = ref(null)
-const detailAsObject = computed(() => selectedAllFields.value && typeof selectedAllFields.value === 'object')
+const emit = defineEmits(['data-changed'])
 
-const openDetails = (row) => {
-  selectedAllFields.value = row && row.__row_key !== undefined ? stripRowKey(row) : row
-  showDialog.value = true
+const showDetailsDialog = ref(false)
+const showAddDialog = ref(false)
+const showDeleteDialog = ref(false)
+
+const selectedItem = ref(null)
+const newItem = ref({})
+const itemToDelete = ref(null)
+
+const openDetails = (item) => {
+  selectedItem.value = item
+  showDetailsDialog.value = true
 }
 
-const stripRowKey = (r) => {
-  if (r && typeof r === 'object') {
-    const rest = { ...r }
-    delete rest.__row_key
-    return rest
-  }
-  return r
+const openAddDialog = () => {
+  newItem.value = { ogrenci_id: null, ders_id: null, puan: null }
+  showAddDialog.value = true
 }
 
-const ignoredKeys = ['id', 'created_at', 'updated_at', 'deleted_at']
-const isIgnored = (k) => ignoredKeys.includes(k) || /_id$/.test(k)
+const openDeleteDialog = (item) => {
+  itemToDelete.value = item
+  showDeleteDialog.value = true
+}
 
-const isEmpty = computed(() => {
-  if (Array.isArray(props.data)) return props.data.length === 0
-  if (props.data && typeof props.data === 'object') return Object.keys(props.data).length === 0
-  return props.data === undefined || props.data === null || props.data === ''
-})
+const onSave = async () => {
+  try {
+    await axios.post('http://localhost:8000/api/notlar', newItem.value)
+    showAddDialog.value = false
+    emit('data-changed')
+  } catch (error) {
+    console.error("Kaydetme hatası:", error)
+  }
+}
 
-const isArrayOfObjects = computed(() => {
-  return Array.isArray(props.data) && props.data.length > 0 && typeof props.data[0] === 'object' && props.data[0] !== null
-})
+const onDeleteConfirm = async () => {
+  if (!itemToDelete.value) return
+  try {
+    await axios.delete(`http://localhost:8000/api/notlar/${itemToDelete.value.id}`)
+    showDeleteDialog.value = false
+    emit('data-changed')
+  } catch (error) {
+    console.error("Silme hatası:", error)
+  }
+}
 
-const rows = computed(() => {
-  if (!isArrayOfObjects.value) return []
-  return props.data.map((r, i) => ({ __row_key: i, ...r }))
-})
+const isEmpty = computed(() => props.data.length === 0)
+const isArrayOfObjects = computed(() => props.data.length > 0 && typeof props.data[0] === 'object')
+
+const rows = computed(() => props.data)
 
 const columns = computed(() => {
   if (!isArrayOfObjects.value) return []
-  const keys = Object.keys(props.data[0]).filter((k) => !isIgnored(k))
-  const base = keys.map((k) => ({ name: k, label: k, field: k, align: 'left', sortable: true, format: (val) => formatCell(val) }))
+  const keys = Object.keys(props.data[0] || {}).filter(k => !['ogrenci', 'ders'].includes(k))
+  const base = keys.map((k) => ({ name: k, label: k, field: k, align: 'left', sortable: true, format: (val, row) => formatCell(val, row, k) }))
   return [
     ...base,
-    { name: 'actions', label: 'İşlem', field: 'actions', align: 'right', sortable: false },
+    { name: 'actions', label: 'İşlemler', field: 'actions', align: 'right', sortable: false },
   ]
 })
 
-const filteredObject = (obj) => {
-  if (!obj || typeof obj !== 'object') return obj
-  const out = {}
-  Object.keys(obj).forEach((k) => {
-    if (!isIgnored(k)) out[k] = obj[k]
-  })
-  return out
-}
+const ogrencilerOptions = computed(() => 
+  props.ogrenciler.map(o => ({ label: o.ad_soyad, value: o.id }))
+)
 
-const formatCell = (val) => {
+const derslerOptions = computed(() => 
+  props.dersler.map(d => ({ label: d.ad, value: d.id }))
+)
+
+const formatCell = (val, row, key) => {
+  if (key === 'ogrenci_id' && row.ogrenci) {
+    return `${row.ogrenci.ad_soyad} (ID: ${val})`
+  }
+  if (key === 'ders_id' && row.ders) {
+    return `${row.ders.ad} (ID: ${val})`
+  }
   if (val == null) return ''
   if (typeof val === 'object') {
-    // Birkaç yaygın alan adına öncelik ver
     const displayKey = ['ad_soyad', 'ad', 'isim', 'name', 'title'].find((k) => k in val)
     if (displayKey) return String(val[displayKey])
-    // Düşük gürültülü kısa gösterim
-    try { return JSON.stringify(val) } catch { return String(val) }
+    return JSON.stringify(val)
   }
   return String(val)
 }

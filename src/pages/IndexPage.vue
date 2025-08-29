@@ -27,19 +27,19 @@
 
         <q-tab-panels v-model="tab" animated>
           <q-tab-panel name="ogrenciler" class="q-pa-none">
-            <OgrencilerCard id="ogrenciler" :data="ogrenciler" title="Öğrenciler" />
+            <OgrencilerCard id="ogrenciler" :data="ogrenciler" title="Öğrenciler" @data-changed="refreshData" />
           </q-tab-panel>
 
           <q-tab-panel name="egitmenler" class="q-pa-none">
-            <EgitmenlerCard id="egitmenler" :data="egitmenler" title="Eğitmenler" />
+            <EgitmenlerCard id="egitmenler" :data="egitmenler" title="Eğitmenler" @data-changed="refreshData" />
           </q-tab-panel>
 
           <q-tab-panel name="dersler" class="q-pa-none">
-            <DerslerCard id="dersler" :data="dersler" title="Dersler" />
+            <DerslerCard id="dersler" :data="dersler" :egitmenler="egitmenler" title="Dersler" @data-changed="refreshData" />
           </q-tab-panel>
 
           <q-tab-panel name="notlar" class="q-pa-none">
-            <NotlarCard id="notlar" :data="notlar" title="Notlar" />
+            <NotlarCard id="notlar" :data="notlar" :ogrenciler="ogrenciler" :dersler="dersler" title="Notlar" @data-changed="refreshData" />
           </q-tab-panel>
         </q-tab-panels>
       </q-card>
@@ -61,43 +61,44 @@ const egitmenler = ref([])
 const dersler = ref([])
 const notlar = ref([])
 
-onMounted(() => {
+const refreshData = () => {
   Promise.all([
     axios.get('http://localhost:8000/api/ogrenciler'),
     axios.get('http://localhost:8000/api/egitmenler'),
     axios.get('http://localhost:8000/api/dersler'),
     axios.get('http://localhost:8000/api/notlar')
   ]).then(([ogr, egt, drs, nt]) => {
-    // Kaynak dizileri al
     const ogrArr = Array.isArray(ogr.data) ? ogr.data : (ogr?.data?.data || [])
     const egtArr = Array.isArray(egt.data) ? egt.data : (egt?.data?.data || [])
     const drsArr = Array.isArray(drs.data) ? drs.data : (drs?.data?.data || [])
     const ntArr  = Array.isArray(nt.data)  ? nt.data  : (nt?.data?.data  || [])
 
-    // Lookup map'leri
     const mapById = (arr) => arr.reduce((m, x) => { if (x && x.id != null) m[x.id] = x; return m }, {})
     const ogrMap = mapById(ogrArr)
     const egtMap = mapById(egtArr)
     const drsMap = mapById(drsArr)
 
-    // Dersleri egitmen ile zenginleştir
     const drsEnriched = drsArr.map(d => ({
       ...d,
       egitmen: d && (d.egitmen_id != null) ? egtMap[d.egitmen_id] || null : null,
     }))
 
-    // Notlari ogrenci ve ders ile zenginleştir
     const ntEnriched = ntArr.map(n => ({
       ...n,
       ogrenci: n && (n.ogrenci_id != null) ? ogrMap[n.ogrenci_id] || null : null,
       ders:    n && (n.ders_id != null)    ? drsMap[n.ders_id]    || null : null,
     }))
 
-    // State'e yaz
     ogrenciler.value = ogrArr
     egitmenler.value = egtArr
     dersler.value = drsEnriched
     notlar.value = ntEnriched
+  }).catch(error => {
+    console.error("Veri yenileme hatası:", error)
   })
+}
+
+onMounted(() => {
+  refreshData()
 })
 </script>
