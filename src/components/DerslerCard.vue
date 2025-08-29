@@ -160,7 +160,8 @@ const rows = computed(() => props.data)
 
 const columns = computed(() => {
   if (!isArrayOfObjects.value) return []
-  const keys = Object.keys(props.data[0] || {}).filter(k => k !== 'egitmen')
+  const hidden = ['id', 'created_at', 'updated_at', 'egitmen']
+  const keys = Object.keys(props.data[0] || {}).filter(k => !hidden.includes(k))
   const base = keys.map((k) => ({ name: k, label: k, field: k, align: 'left', sortable: true, format: (val, row) => formatCell(val, row, k) }))
   return [
     ...base,

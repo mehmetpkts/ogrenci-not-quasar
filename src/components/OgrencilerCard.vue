@@ -151,7 +151,8 @@ const rows = computed(() => props.data)
 
 const columns = computed(() => {
   if (!isArrayOfObjects.value) return []
-  const keys = Object.keys(props.data[0] || {})
+  const hidden = ['id', 'created_at', 'updated_at']
+  const keys = Object.keys(props.data[0] || {}).filter(k => !hidden.includes(k))
   const base = keys.map((k) => ({ name: k, label: k, field: k, align: 'left', sortable: true }))
   return [
     ...base,
