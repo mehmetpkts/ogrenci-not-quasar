@@ -11,9 +11,8 @@
           @click="toggleLeftDrawer"
         />
 
-        <q-toolbar-title> Quasar App </q-toolbar-title>
+        <q-toolbar-title>Öğrenci Bilgi Sistemi</q-toolbar-title>
 
-        <div>Quasar v{{ $q.version }}</div>
       </q-toolbar>
     </q-header>
 
@@ -35,8 +34,8 @@
             <q-icon name="home" />
           </q-item-section>
           <q-item-section>
-            <q-item-label>Home</q-item-label>
-            <q-item-label caption>IndexPage</q-item-label>
+            <q-item-label>Ana Sayfa</q-item-label>
+            <q-item-label caption>Öğrenci Bilgi Sistemi</q-item-label>
           </q-item-section>
         </q-item>
       </q-list>

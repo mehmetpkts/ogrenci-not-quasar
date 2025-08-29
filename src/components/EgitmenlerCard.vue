@@ -3,12 +3,40 @@
     <q-card-section class="row items-center q-pb-sm">
       <div class="text-h6">{{ title }}</div>
       <q-space />
-      <q-btn color="primary" icon="add" label="Yeni Ekle" @click="openAddDialog" />
+      <q-btn
+        color="primary"
+        icon="add"
+        label="Yeni Ekle"
+        @click="openAddDialog"
+      />
     </q-card-section>
 
     <q-card-section>
-      <div v-if="isEmpty" class="text-center text-grey-6 q-pa-lg">
-        <q-icon name="inbox" size="lg" />
+      <div
+        class="q-mb-sm"
+        v-if="isArrayOfObjects"
+      >
+        <q-input
+          v-model="filter"
+          dense
+          debounce="300"
+          placeholder="Ara"
+          clearable
+          filled
+        >
+          <template #append>
+            <q-icon name="search" />
+          </template>
+        </q-input>
+      </div>
+      <div
+        v-if="isEmpty"
+        class="text-center text-grey-6 q-pa-lg"
+      >
+        <q-icon
+          name="inbox"
+          size="lg"
+        />
         <div class="text-h6 q-mt-sm">Veri bulunamadı</div>
       </div>
 
@@ -17,12 +45,27 @@
         flat
         :rows="rows"
         :columns="columns"
+        :filter="filter"
         row-key="id"
       >
         <template #body-cell-actions="props">
           <q-td :props="props">
-            <q-btn flat round color="primary" icon="visibility" size="sm" @click="openDetails(props.row)" />
-            <q-btn flat round color="negative" icon="delete" size="sm" @click="openDeleteDialog(props.row)" />
+            <q-btn
+              flat
+              round
+              color="primary"
+              icon="visibility"
+              size="sm"
+              @click="openDetails(props.row)"
+            />
+            <q-btn
+              flat
+              round
+              color="negative"
+              icon="delete"
+              size="sm"
+              @click="openDeleteDialog(props.row)"
+            />
           </q-td>
         </template>
       </q-table>
@@ -34,14 +77,30 @@
         <q-card-section class="row items-center bg-primary text-white q-py-sm">
           <div class="text-h6">{{ title }} Detayları</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn
+            icon="close"
+            flat
+            round
+            dense
+            v-close-popup
+          />
         </q-card-section>
         <q-card-section class="q-pt-md">
-          <q-list bordered separator v-if="selectedItem">
-            <q-item v-for="(val, key) in selectedItem" :key="key">
-              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ key }}</q-item-section>
+          <q-list
+            bordered
+            separator
+            v-if="selectedItem"
+          >
+            <q-item
+              v-for="(entry, idx) in detailEntries"
+              :key="idx"
+            >
+              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ entry[0] }}</q-item-section>
               <q-item-section>
-                <pre class="q-ma-none" style="white-space: pre-wrap">{{ val }}</pre>
+                <pre
+                  class="q-ma-none"
+                  style="white-space: pre-wrap"
+                >{{ entry[1] }}</pre>
               </q-item-section>
             </q-item>
           </q-list>
@@ -50,19 +109,45 @@
     </q-dialog>
 
     <!-- Ekle Dialog -->
-    <q-dialog v-model="showAddDialog" persistent>
+    <q-dialog
+      v-model="showAddDialog"
+      persistent
+    >
       <q-card style="min-width: 400px">
         <q-card-section class="row items-center bg-primary text-white q-py-sm">
           <div class="text-h6">Yeni Eğitmen Ekle</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn
+            icon="close"
+            flat
+            round
+            dense
+            v-close-popup
+          />
         </q-card-section>
         <q-card-section>
-          <q-form @submit="onSave" class="q-gutter-md q-pa-md">
-            <q-input v-model="newItem.ad_soyad" label="Adı Soyadı" filled dense />
+          <q-form
+            @submit="onSave"
+            class="q-gutter-md q-pa-md"
+          >
+            <q-input
+              v-model="newItem.ad_soyad"
+              label="Adı Soyadı"
+              filled
+              dense
+            />
             <div class="q-pt-md">
-              <q-btn label="Kaydet" type="submit" color="primary" />
-              <q-btn label="İptal" flat class="q-ml-sm" v-close-popup />
+              <q-btn
+                label="Kaydet"
+                type="submit"
+                color="primary"
+              />
+              <q-btn
+                label="İptal"
+                flat
+                class="q-ml-sm"
+                v-close-popup
+              />
             </div>
           </q-form>
         </q-card-section>
@@ -70,18 +155,34 @@
     </q-dialog>
 
     <!-- Silme Onay Dialog -->
-    <q-dialog v-model="showDeleteDialog" persistent>
+    <q-dialog
+      v-model="showDeleteDialog"
+      persistent
+    >
       <q-card>
         <q-card-section class="row items-center">
-          <q-avatar icon="warning" color="negative" text-color="white" />
+          <q-avatar
+            icon="warning"
+            color="negative"
+            text-color="white"
+          />
           <span class="q-ml-sm text-h6">Silme Onayı</span>
         </q-card-section>
         <q-card-section>
           Bu kaydı kalıcı olarak silmek istediğinizden emin misiniz?
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="İptal" color="primary" v-close-popup />
-          <q-btn label="Evet, Sil" color="negative" @click="onDeleteConfirm" />
+          <q-btn
+            flat
+            label="İptal"
+            color="primary"
+            v-close-popup
+          />
+          <q-btn
+            label="Evet, Sil"
+            color="negative"
+            @click="onDeleteConfirm"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -105,6 +206,7 @@ const showDeleteDialog = ref(false)
 
 const selectedItem = ref(null)
 const newItem = ref({})
+const filter = ref('')
 const itemToDelete = ref(null)
 
 const openDetails = (item) => {
@@ -152,10 +254,24 @@ const columns = computed(() => {
   if (!isArrayOfObjects.value) return []
   const hidden = ['id', 'created_at', 'updated_at']
   const keys = Object.keys(props.data[0] || {}).filter(k => !hidden.includes(k))
-  const base = keys.map((k) => ({ name: k, label: k, field: k, align: 'left', sortable: true }))
+  const labelMap = {
+    ad_soyad: 'Ad Soyad',
+    ad: 'Ad',
+    soyad: 'Soyad',
+    created_at: 'Oluşturulma',
+    updated_at: 'Güncellenme',
+  }
+  const pretty = (k) => labelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  const base = keys.map((k) => ({ name: k, label: pretty(k), field: k, align: 'left', sortable: true }))
   return [
     ...base,
     { name: 'actions', label: 'İşlemler', field: 'actions', align: 'right', sortable: false },
   ]
+})
+
+const detailEntries = computed(() => {
+  const item = selectedItem.value || {}
+  const hide = ['id', 'created_at', 'updated_at']
+  return Object.entries(item).filter(([k]) => !hide.includes(k))
 })
 </script>

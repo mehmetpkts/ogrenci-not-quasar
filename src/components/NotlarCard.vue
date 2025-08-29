@@ -7,6 +7,13 @@
     </q-card-section>
 
     <q-card-section>
+      <div class="q-mb-sm" v-if="isArrayOfObjects">
+        <q-input v-model="filter" dense debounce="300" placeholder="Ara" clearable filled>
+          <template #append>
+            <q-icon name="search" />
+          </template>
+        </q-input>
+      </div>
       <div v-if="isEmpty" class="text-center text-grey-6 q-pa-lg">
         <q-icon name="inbox" size="lg" />
         <div class="text-h6 q-mt-sm">Veri bulunamadı</div>
@@ -17,6 +24,7 @@
         flat
         :rows="rows"
         :columns="columns"
+        :filter="filter"
         row-key="id"
       >
         <template #body-cell-actions="props">
@@ -39,10 +47,10 @@
         </q-card-section>
         <q-card-section class="q-pt-md">
           <q-list bordered separator v-if="selectedItem">
-            <q-item v-for="(val, key) in selectedItem" :key="key">
-              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ key }}</q-item-section>
+            <q-item v-for="(entry, idx) in detailEntries" :key="idx">
+              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ entry[0] }}</q-item-section>
               <q-item-section>
-                <pre class="q-ma-none" style="white-space: pre-wrap">{{ val }}</pre>
+                <pre class="q-ma-none" style="white-space: pre-wrap">{{ entry[1] }}</pre>
               </q-item-section>
             </q-item>
           </q-list>
@@ -185,6 +193,7 @@ const showEditDialog = ref(false)
 
 const selectedItem = ref(null)
 const newItem = ref({})
+const filter = ref('')
 const saving = ref(false)
 const itemToDelete = ref(null)
 const editItem = ref({})
@@ -293,7 +302,16 @@ const columns = computed(() => {
   if (!isArrayOfObjects.value) return []
   const hidden = ['id', 'created_at', 'updated_at', 'ogrenci', 'ders']
   const keys = Object.keys(props.data[0] || {}).filter(k => !hidden.includes(k))
-  const base = keys.map((k) => ({ name: k, label: k, field: k, align: 'left', sortable: true, format: (val, row) => formatCell(val, row, k) }))
+  const labelMap = {
+    ogrenci_id: 'Öğrenci',
+    ders_id: 'Ders',
+    not: 'Puan',
+    puan: 'Puan',
+    created_at: 'Oluşturulma',
+    updated_at: 'Güncellenme',
+  }
+  const pretty = (k) => labelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  const base = keys.map((k) => ({ name: k, label: pretty(k), field: k, align: 'left', sortable: true, format: (val, row) => formatCell(val, row, k) }))
   return [
     ...base,
     { name: 'actions', label: 'İşlemler', field: 'actions', align: 'right', sortable: false },
@@ -309,11 +327,13 @@ const derslerOptions = computed(() =>
 )
 
 const formatCell = (val, row, key) => {
-  if (key === 'ogrenci_id' && row.ogrenci) {
-    return `${row.ogrenci.ad_soyad} (ID: ${val})`
+  if (key === 'ogrenci_id') {
+    if (row.ogrenci && row.ogrenci.ad_soyad) return String(row.ogrenci.ad_soyad)
+    return val == null ? '' : String(val)
   }
-  if (key === 'ders_id' && row.ders) {
-    return `${row.ders.ad} (ID: ${val})`
+  if (key === 'ders_id') {
+    if (row.ders && row.ders.ad) return String(row.ders.ad)
+    return val == null ? '' : String(val)
   }
   if (val == null) return ''
   if (typeof val === 'object') {
@@ -323,4 +343,33 @@ const formatCell = (val, row, key) => {
   }
   return String(val)
 }
+
+const detailEntries = computed(() => {
+  const item = selectedItem.value || {}
+  const hide = ['id', 'ogrenci_id', 'ders_id', 'created_at', 'updated_at']
+  
+  return Object.entries(item)
+    .filter(([k]) => !hide.includes(k))
+    .map(([key, value]) => {
+      // Eğer değer string ise ve JSON formatındaysa parse et
+      let val = value
+      try {
+        if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+          val = JSON.parse(value)
+        }
+      } catch (error) {
+        console.debug('JSON parse hatası:', error)
+      }
+      
+      // Eğer değer bir obje ise ad_soyad, ad veya name gibi bir alanı al
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        const displayKey = ['ad_soyad', 'ad', 'name', 'title'].find(k => k in val)
+        if (displayKey) {
+          val = val[displayKey]
+        }
+      }
+      
+      return [key, val]
+    })
+})
 </script>
