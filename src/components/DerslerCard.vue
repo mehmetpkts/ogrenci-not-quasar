@@ -61,6 +61,14 @@
             <q-btn
               flat
               round
+              color="warning"
+              icon="edit"
+              size="sm"
+              @click="openEditDialog(props.row)"
+            />
+            <q-btn
+              flat
+              round
               color="negative"
               icon="delete"
               size="sm"
@@ -108,6 +116,64 @@
       </q-card>
     </q-dialog>
 
+    <!-- Düzenle Dialog -->
+    <q-dialog
+      v-model="showEditDialog"
+      persistent
+    >
+      <q-card style="min-width: 400px">
+        <q-card-section class="row items-center bg-primary text-white q-py-sm">
+          <div class="text-h6">Dersi Düzenle</div>
+          <q-space />
+          <q-btn
+            icon="close"
+            flat
+            round
+            dense
+            v-close-popup
+          />
+        </q-card-section>
+        <q-card-section>
+          <q-form
+            @submit.prevent="onEditSave"
+            class="q-gutter-md q-pa-md"
+          >
+            <q-input
+              v-model="editItem.ad"
+              label="Ders Adı"
+              filled
+              dense
+              :rules="[(v) => !!v || 'Ders Adı zorunlu']"
+            />
+            <q-select
+              v-model="editItem.egitmen_id"
+              :options="egitmenlerOptions"
+              label="Eğitmen"
+              filled
+              dense
+              emit-value
+              map-options
+            />
+            <div class="q-pt-md">
+              <q-btn
+                label="Güncelle"
+                type="submit"
+                color="primary"
+                :loading="savingEdit"
+                :disable="savingEdit"
+              />
+              <q-btn
+                label="İptal"
+                flat
+                class="q-ml-sm"
+                v-close-popup
+              />
+            </div>
+          </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <!-- Ekle Dialog -->
     <q-dialog
       v-model="showAddDialog"
@@ -135,6 +201,7 @@
               label="Ders Adı"
               filled
               dense
+              :rules="[(v) => !!v || 'Ders Adı zorunlu']"
             />
             <q-select
               v-model="newItem.egitmen_id"
@@ -150,6 +217,8 @@
                 label="Kaydet"
                 type="submit"
                 color="primary"
+                :loading="saving"
+                :disable="saving"
               />
               <q-btn
                 label="İptal"
@@ -201,6 +270,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import { useQuasar } from 'quasar'
 
 const props = defineProps({
   data: { type: Array, default: () => [] },
@@ -209,15 +279,20 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['data-changed'])
+const $q = useQuasar()
 
 const showDetailsDialog = ref(false)
 const showAddDialog = ref(false)
 const showDeleteDialog = ref(false)
+const showEditDialog = ref(false)
 
 const selectedItem = ref(null)
 const newItem = ref({})
 const filter = ref('')
+const saving = ref(false)
 const itemToDelete = ref(null)
+const editItem = ref({})
+const savingEdit = ref(false)
 
 const openDetails = (item) => {
   selectedItem.value = item
@@ -234,13 +309,55 @@ const openDeleteDialog = (item) => {
   showDeleteDialog.value = true
 }
 
+const openEditDialog = (item) => {
+  editItem.value = {
+    id: item.id,
+    ad: item.ad,
+    egitmen_id: item.egitmen_id ?? item.egitmen?.id ?? null,
+  }
+  showEditDialog.value = true
+}
+
 const onSave = async () => {
+  if (!newItem.value.ad) {
+    $q.notify({ type: 'warning', message: 'Ders Adı zorunludur.' })
+    return
+  }
+
   try {
+    saving.value = true
     await axios.post('http://localhost:8000/api/dersler', newItem.value)
+    $q.notify({ type: 'positive', message: 'Ders başarıyla eklendi.' })
     showAddDialog.value = false
     emit('data-changed')
   } catch (error) {
-    console.error("Kaydetme hatası:", error)
+    const msg = error?.response?.data?.message || error?.response?.data || error?.message || 'Kaydetme hatası'
+    console.error('Kaydetme hatası:', error?.response ? error.response.data : error)
+    $q.notify({ type: 'negative', message: String(msg) })
+  } finally {
+    saving.value = false
+  }
+}
+
+const onEditSave = async () => {
+  const { id, ad, egitmen_id } = editItem.value || {}
+  if (!id || !ad) {
+    $q.notify({ type: 'warning', message: 'Ders Adı zorunludur.' })
+    return
+  }
+  try {
+    savingEdit.value = true
+    const payload = { ad, egitmen_id }
+    await axios.put(`http://localhost:8000/api/dersler/${id}`, payload)
+    $q.notify({ type: 'positive', message: 'Ders güncellendi.' })
+    showEditDialog.value = false
+    emit('data-changed')
+  } catch (error) {
+    const msg = error?.response?.data?.message || error?.response?.data || error?.message || 'Güncelleme hatası'
+    console.error('Güncelleme hatası:', error?.response ? error.response.data : error)
+    $q.notify({ type: 'negative', message: String(msg) })
+  } finally {
+    savingEdit.value = false
   }
 }
 
@@ -252,6 +369,7 @@ const onDeleteConfirm = async () => {
     emit('data-changed')
   } catch (error) {
     console.error("Silme hatası:", error)
+    $q.notify({ type: 'negative', message: String(error?.response?.data?.message || error?.message || 'Silme hatası') })
   }
 }
 
