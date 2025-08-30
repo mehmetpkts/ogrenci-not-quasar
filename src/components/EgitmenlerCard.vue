@@ -166,12 +166,6 @@
               filled
               dense
             />
-            <q-input
-              v-model="editItem.uzmanlik_alani"
-              label="Uzmanlık Alanı"
-              filled
-              dense
-            />
             <div class="q-pt-md">
               <q-btn
                 label="Güncelle"
@@ -239,12 +233,6 @@
               v-model="newItem.email"
               label="E-posta"
               type="email"
-              filled
-              dense
-            />
-            <q-input
-              v-model="newItem.uzmanlik_alani"
-              label="Uzmanlık Alanı"
               filled
               dense
             />
@@ -335,7 +323,7 @@ const openDetails = (item) => {
 }
 
 const openAddDialog = () => {
-  newItem.value = { ad_soyad: '', egitmen_no: '', telefon: '', email: '', uzmanlik_alani: '' }
+  newItem.value = { ad_soyad: '', egitmen_no: '', telefon: '', email: '' }
   showAddDialog.value = true
 }
 
@@ -350,14 +338,13 @@ const openEditDialog = (item) => {
     ad_soyad: item.ad_soyad,
     egitmen_no: item.egitmen_no ?? '',
     telefon: item.telefon_numarasi ?? item.telefon ?? '',
-    email: item.email ?? '',
-    uzmanlik_alani: item.uzmanlik_alani ?? '',
+    email: item.okul_email ?? item.kurum_email ?? item.email ?? '',
   }
   showEditDialog.value = true
 }
 
 const onSave = async () => {
-  const { ad_soyad, egitmen_no, telefon, email, uzmanlik_alani } = newItem.value || {}
+  const { ad_soyad, egitmen_no, telefon, email } = newItem.value || {}
   if (!ad_soyad || !egitmen_no || !telefon) {
     $q.notify({ type: 'warning', message: 'Adı Soyadı, Eğitmen No ve Telefon zorunludur.' })
     return
@@ -365,8 +352,9 @@ const onSave = async () => {
 
   try {
     saving.value = true
-    const payload = { ad_soyad, egitmen_no, email, uzmanlik_alani }
+    const payload = { ad_soyad, egitmen_no }
     payload[phoneField.value] = telefon
+    if (email) payload[emailField.value] = email
     await axios.post('http://localhost:8000/api/egitmenler', payload)
     $q.notify({ type: 'positive', message: 'Eğitmen başarıyla eklendi.' })
     showAddDialog.value = false
@@ -381,15 +369,16 @@ const onSave = async () => {
 }
 
 const onEditSave = async () => {
-  const { id, ad_soyad, egitmen_no, telefon, email, uzmanlik_alani } = editItem.value || {}
+  const { id, ad_soyad, egitmen_no, telefon, email } = editItem.value || {}
   if (!id || !ad_soyad || !egitmen_no || !telefon) {
     $q.notify({ type: 'warning', message: 'Adı Soyadı, Eğitmen No ve Telefon zorunludur.' })
     return
   }
   try {
     savingEdit.value = true
-    const payload = { ad_soyad, egitmen_no, email, uzmanlik_alani }
+    const payload = { ad_soyad, egitmen_no }
     payload[phoneField.value] = telefon
+    if (email) payload[emailField.value] = email
     await axios.put(`http://localhost:8000/api/egitmenler/${id}`, payload)
     $q.notify({ type: 'positive', message: 'Eğitmen güncellendi.' })
     showEditDialog.value = false
@@ -426,6 +415,14 @@ const phoneField = computed(() => {
   return 'telefon_numarasi' in sample ? 'telefon_numarasi' : 'telefon'
 })
 
+// email alanı backend'de "okul_email", "kurum_email" ya da "email" olabilir
+const emailField = computed(() => {
+  const sample = props.data?.[0] || {}
+  if ('okul_email' in sample) return 'okul_email'
+  if ('kurum_email' in sample) return 'kurum_email'
+  return 'email'
+})
+
 // Ortak başlık üretici
 const prettyKey = (k) => {
   const map = {
@@ -435,7 +432,8 @@ const prettyKey = (k) => {
     telefon: 'Telefon Numarası',
     telefon_numarasi: 'Telefon Numarası',
     email: 'E-posta',
-    uzmanlik_alani: 'Uzmanlık Alanı',
+    okul_email: 'Okul E-posta',
+    kurum_email: 'Kurum E-posta',
     kayit_tarihi: 'Kayıt Tarihi',
   }
   let label = map[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
