@@ -154,6 +154,14 @@
               emit-value
               map-options
             />
+            <template v-for="k in extraKeys" :key="'edit-'+k">
+              <q-input
+                v-model="editItem[k]"
+                :label="prettyLabel(k)"
+                filled
+                dense
+              />
+            </template>
             <div class="q-pt-md">
               <q-btn
                 label="Güncelle"
@@ -212,6 +220,14 @@
               emit-value
               map-options
             />
+            <template v-for="k in extraKeys" :key="'new-'+k">
+              <q-input
+                v-model="newItem[k]"
+                :label="prettyLabel(k)"
+                filled
+                dense
+              />
+            </template>
             <div class="q-pt-md">
               <q-btn
                 label="Kaydet"
@@ -300,7 +316,9 @@ const openDetails = (item) => {
 }
 
 const openAddDialog = () => {
-  newItem.value = { ad: '', egitmen_id: null }
+  const base = { ad: '', egitmen_id: null }
+  extraKeys.value.forEach(k => { base[k] = '' })
+  newItem.value = base
   showAddDialog.value = true
 }
 
@@ -315,6 +333,8 @@ const openEditDialog = (item) => {
     ad: item.ad,
     egitmen_id: item.egitmen_id ?? item.egitmen?.id ?? null,
   }
+  // extra alanları kopyala
+  extraKeys.value.forEach(k => { editItem.value[k] = item[k] ?? '' })
   showEditDialog.value = true
 }
 
@@ -340,14 +360,16 @@ const onSave = async () => {
 }
 
 const onEditSave = async () => {
-  const { id, ad, egitmen_id } = editItem.value || {}
+  const { id, ad } = editItem.value || {}
   if (!id || !ad) {
     $q.notify({ type: 'warning', message: 'Ders Adı zorunludur.' })
     return
   }
   try {
     savingEdit.value = true
-    const payload = { ad, egitmen_id }
+    const payload = { ...editItem.value }
+    // backend kontrolü için yalnızca gerekli alanları tut (id hariç)
+    delete payload.id
     await axios.put(`http://localhost:8000/api/dersler/${id}`, payload)
     $q.notify({ type: 'positive', message: 'Ders güncellendi.' })
     showEditDialog.value = false
@@ -395,6 +417,19 @@ const columns = computed(() => {
     { name: 'actions', label: 'İşlemler', field: 'actions', align: 'right', sortable: false },
   ]
 })
+
+// form alanları: veri anahtarlarından ad, egitmen_id ve gizli alanları çıkar
+const hiddenKeys = ['id', 'created_at', 'updated_at', 'egitmen']
+const baseFormKeys = ['ad', 'egitmen_id']
+const extraKeys = computed(() => {
+  const sample = props.data?.[0] || {}
+  return Object.keys(sample).filter(k => !hiddenKeys.includes(k) && !baseFormKeys.includes(k))
+})
+
+const prettyLabel = (k) => {
+  const map = { ad: 'Ders', egitmen_id: 'Eğitmen' }
+  return map[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
 
 const egitmenlerOptions = computed(() =>
   props.egitmenler.map(e => ({ label: e.ad_soyad, value: e.id }))

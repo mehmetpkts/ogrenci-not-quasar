@@ -103,7 +103,7 @@
               v-for="(entry, idx) in detailEntries"
               :key="idx"
             >
-              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ entry[0] }}</q-item-section>
+              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ prettyKey(entry[0]) }}</q-item-section>
               <q-item-section>
                 <pre
                   class="q-ma-none"
@@ -144,6 +144,27 @@
               filled
               dense
               :rules="[(v) => !!v || 'Adı Soyadı zorunlu']"
+            />
+            <q-input
+              v-model="editItem.ogrenci_no"
+              label="Öğrenci No"
+              filled
+              dense
+              :rules="[(v) => !!v || 'Öğrenci No zorunlu']"
+            />
+            <q-input
+              v-model="editItem.telefon"
+              label="Telefon Numarası"
+              filled
+              dense
+              :rules="[(v) => !!v || 'Telefon Numarası zorunlu']"
+            />
+            <q-input
+              v-model="editItem.email"
+              label="E-posta"
+              type="email"
+              filled
+              dense
             />
             <div class="q-pt-md">
               <q-btn
@@ -193,6 +214,27 @@
               filled
               dense
               :rules="[(v) => !!v || 'Adı Soyadı zorunlu']"
+            />
+            <q-input
+              v-model="newItem.ogrenci_no"
+              label="Öğrenci No"
+              filled
+              dense
+              :rules="[(v) => !!v || 'Öğrenci No zorunlu']"
+            />
+            <q-input
+              v-model="newItem.telefon"
+              label="Telefon Numarası"
+              filled
+              dense
+              :rules="[(v) => !!v || 'Telefon Numarası zorunlu']"
+            />
+            <q-input
+              v-model="newItem.email"
+              label="E-posta"
+              type="email"
+              filled
+              dense
             />
             <div class="q-pt-md">
               <q-btn
@@ -281,7 +323,7 @@ const openDetails = (item) => {
 }
 
 const openAddDialog = () => {
-  newItem.value = { ad_soyad: '' }
+  newItem.value = { ad_soyad: '', ogrenci_no: '', telefon: '', email: '' }
   showAddDialog.value = true
 }
 
@@ -294,19 +336,26 @@ const openEditDialog = (item) => {
   editItem.value = {
     id: item.id,
     ad_soyad: item.ad_soyad,
+    ogrenci_no: item.ogrenci_no ?? '',
+    telefon: item.telefon_numarasi ?? item.telefon ?? '',
+    email: item.okul_email ?? item.email ?? '',
   }
   showEditDialog.value = true
 }
 
 const onSave = async () => {
-  if (!newItem.value.ad_soyad) {
-    $q.notify({ type: 'warning', message: 'Adı Soyadı zorunludur.' })
+  const { ad_soyad, ogrenci_no, telefon, email } = newItem.value || {}
+  if (!ad_soyad || !ogrenci_no || !telefon) {
+    $q.notify({ type: 'warning', message: 'Adı Soyadı, Öğrenci No ve Telefon zorunludur.' })
     return
   }
 
   try {
     saving.value = true
-    await axios.post('http://localhost:8000/api/ogrenciler', newItem.value)
+    const payload = { ad_soyad, ogrenci_no }
+    payload[phoneField.value] = telefon
+    if (email) payload[emailField.value] = email
+    await axios.post('http://localhost:8000/api/ogrenciler', payload)
     $q.notify({ type: 'positive', message: 'Öğrenci başarıyla eklendi.' })
     showAddDialog.value = false
     emit('data-changed')
@@ -320,14 +369,16 @@ const onSave = async () => {
 }
 
 const onEditSave = async () => {
-  const { id, ad_soyad } = editItem.value || {}
-  if (!id || !ad_soyad) {
-    $q.notify({ type: 'warning', message: 'Adı Soyadı zorunludur.' })
+  const { id, ad_soyad, ogrenci_no, telefon, email } = editItem.value || {}
+  if (!id || !ad_soyad || !ogrenci_no || !telefon) {
+    $q.notify({ type: 'warning', message: 'Adı Soyadı, Öğrenci No ve Telefon zorunludur.' })
     return
   }
   try {
     savingEdit.value = true
-    const payload = { ad_soyad }
+    const payload = { ad_soyad, ogrenci_no }
+    payload[phoneField.value] = telefon
+    if (email) payload[emailField.value] = email
     await axios.put(`http://localhost:8000/api/ogrenciler/${id}`, payload)
     $q.notify({ type: 'positive', message: 'Öğrenci güncellendi.' })
     showEditDialog.value = false
@@ -358,24 +409,44 @@ const isArrayOfObjects = computed(() => props.data.length > 0 && typeof props.da
 
 const rows = computed(() => props.data)
 
+// telefon alanı backend'de "telefon" ya da "telefon_numarasi" olabilir
+const phoneField = computed(() => {
+  const sample = props.data?.[0] || {}
+  return 'telefon_numarasi' in sample ? 'telefon_numarasi' : 'telefon'
+})
+
+// email alanı backend'de "email" ya da "okul_email" olabilir
+const emailField = computed(() => {
+  const sample = props.data?.[0] || {}
+  return 'okul_email' in sample ? 'okul_email' : 'email'
+})
+
+// Ortak başlık üretici
+const prettyKey = (k) => {
+  const map = {
+    id: 'ID',
+    ogrenci_no: 'Öğrenci No',
+    ad_soyad: 'Adı Soyadı',
+    telefon: 'Telefon Numarası',
+    telefon_numarasi: 'Telefon Numarası',
+    email: 'E-posta',
+    okul_email: 'Okul E-posta',
+    kayit_tarihi: 'Kayıt Tarihi',
+  }
+  let label = map[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+  // Türkçe karakter düzeltmeleri
+  label = label
+    .replace('Ogrenci', 'Öğrenci')
+    .replace('Egitmen', 'Eğitmen')
+    .replace('Numarasi', 'Numarası')
+  return label
+}
+
 const columns = computed(() => {
   if (!isArrayOfObjects.value) return []
   const hidden = ['id', 'created_at', 'updated_at']
   const keys = Object.keys(props.data[0] || {}).filter(k => !hidden.includes(k))
-  const labelMap = {
-    ad_soyad: 'Ad Soyad',
-    ad: 'Ad',
-    soyad: 'Soyad',
-    numara: 'Numara',
-    egitmen_id: 'Eğitmen',
-    ders_id: 'Ders',
-    not: 'Puan',
-    puan: 'Puan',
-    created_at: 'Oluşturulma',
-    updated_at: 'Güncellenme',
-  }
-  const pretty = (k) => labelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-  const base = keys.map((k) => ({ name: k, label: pretty(k), field: k, align: 'left', sortable: true }))
+  const base = keys.map((k) => ({ name: k, label: prettyKey(k), field: k, align: 'left', sortable: true }))
   return [
     ...base,
     { name: 'actions', label: 'İşlemler', field: 'actions', align: 'right', sortable: false },
