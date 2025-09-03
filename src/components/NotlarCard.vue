@@ -7,8 +7,8 @@
     </q-card-section>
 
     <q-card-section>
-      <div class="q-mb-sm" v-if="isArrayOfObjects">
-        <q-input v-model="filter" dense debounce="300" placeholder="Ara" clearable filled>
+      <div class="q-mb-sm">
+        <q-input v-model="filter" dense debounce="300" placeholder="Öğrenci veya derse göre ara..." clearable filled>
           <template #append>
             <q-icon name="search" />
           </template>
@@ -19,44 +19,31 @@
         <div class="text-h6 q-mt-sm">Veri bulunamadı</div>
       </div>
 
-      <q-table
-        v-else-if="isArrayOfObjects"
-        flat
-        :rows="rows"
-        :columns="columns"
-        :filter="filter"
-        row-key="id"
-      >
-        <template #body-cell-actions="props">
-          <q-td :props="props">
-            <q-btn flat round color="primary" icon="visibility" size="sm" @click="openDetails(props.row)" />
-            <q-btn flat round color="warning" icon="edit" size="sm" @click="openEditDialog(props.row)" />
-            <q-btn flat round color="negative" icon="delete" size="sm" @click="openDeleteDialog(props.row)" />
-          </q-td>
-        </template>
-      </q-table>
-    </q-card-section>
+      <div v-else class="row q-col-gutter-md q-mt-md">
+        <div v-for="ogrenci in filteredGroupedNotes" :key="ogrenci.ogrenci_id" class="col-12 col-sm-6 col-md-4">
+          <q-card>
+            <q-card-section class="bg-grey-2">
+              <div class="text-h6">{{ ogrenci.ogrenci_ad_soyad }}</div>
+            </q-card-section>
 
-    <!-- Detay Dialog -->
-    <q-dialog v-model="showDetailsDialog">
-      <q-card style="min-width: 600px">
-        <q-card-section class="row items-center bg-primary text-white q-py-sm">
-          <div class="text-h6">{{ title }} Detayları</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
-        <q-card-section class="q-pt-md">
-          <q-list bordered separator v-if="selectedItem">
-            <q-item v-for="(entry, idx) in detailEntries" :key="idx">
-              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ entry[0] }}</q-item-section>
-              <q-item-section>
-                <pre class="q-ma-none" style="white-space: pre-wrap">{{ entry[1] }}</pre>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+            <q-list separator>
+              <q-item v-for="not in ogrenci.notlar" :key="not.id">
+                <q-item-section>
+                  <q-item-label>{{ not.ders_ad }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label caption>{{ not.not }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                   <q-btn flat round color="warning" icon="edit" size="sm" @click="openEditDialog(not)" />
+                   <q-btn flat round color="negative" icon="delete" size="sm" @click="openDeleteDialog(not)" />
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card>
+        </div>
+      </div>
+    </q-card-section>
 
     <!-- Düzenle Dialog -->
     <q-dialog v-model="showEditDialog" persistent>
@@ -186,23 +173,16 @@ const props = defineProps({
 const emit = defineEmits(['data-changed'])
 const $q = useQuasar()
 
-const showDetailsDialog = ref(false)
 const showAddDialog = ref(false)
 const showDeleteDialog = ref(false)
 const showEditDialog = ref(false)
 
-const selectedItem = ref(null)
 const newItem = ref({})
 const filter = ref('')
 const saving = ref(false)
 const itemToDelete = ref(null)
 const editItem = ref({})
 const savingEdit = ref(false)
-
-const openDetails = (item) => {
-  selectedItem.value = item
-  showDetailsDialog.value = true
-}
 
 const openAddDialog = () => {
   newItem.value = { ogrenci_id: null, ders_id: null, not: null }
@@ -215,18 +195,11 @@ const openDeleteDialog = (item) => {
 }
 
 const openEditDialog = (item) => {
-  // Mevcut kaydı form alanlarına koy
-  editItem.value = {
-    id: item.id,
-    ogrenci_id: item.ogrenci_id ?? item.ogrenci?.id ?? null,
-    ders_id: item.ders_id ?? item.ders?.id ?? null,
-    not: item.not ?? item.puan ?? null,
-  }
+  editItem.value = { ...item }
   showEditDialog.value = true
 }
 
 const onSave = async () => {
-  // Basit doğrulama
   const { ogrenci_id, ders_id, not } = newItem.value || {}
   const ogrIdNum = Number(ogrenci_id)
   const drsIdNum = Number(ders_id)
@@ -294,28 +267,41 @@ const onDeleteConfirm = async () => {
 }
 
 const isEmpty = computed(() => props.data.length === 0)
-const isArrayOfObjects = computed(() => props.data.length > 0 && typeof props.data[0] === 'object')
 
-const rows = computed(() => props.data)
+const groupedNotes = computed(() => {
+  const gruplar = new Map()
 
-const columns = computed(() => {
-  if (!isArrayOfObjects.value) return []
-  const hidden = ['id', 'created_at', 'updated_at', 'ogrenci', 'ders']
-  const keys = Object.keys(props.data[0] || {}).filter(k => !hidden.includes(k))
-  const labelMap = {
-    ogrenci_id: 'Öğrenci',
-    ders_id: 'Ders',
-    not: 'Puan',
-    puan: 'Puan',
-    created_at: 'Oluşturulma',
-    updated_at: 'Güncellenme',
+  props.data.forEach(not => {
+    const ogrenciId = not.ogrenci_id
+    if (!gruplar.has(ogrenciId)) {
+      gruplar.set(ogrenciId, {
+        ogrenci_id: ogrenciId,
+        ogrenci_ad_soyad: not.ogrenci.ad_soyad,
+        notlar: []
+      })
+    }
+    gruplar.get(ogrenciId).notlar.push({
+      id: not.id,
+      ders_id: not.ders_id,
+      ders_ad: not.ders.ad,
+      not: not.not,
+      ogrenci_id: not.ogrenci_id
+    })
+  })
+
+  return Array.from(gruplar.values())
+})
+
+const filteredGroupedNotes = computed(() => {
+  if (!filter.value) {
+    return groupedNotes.value
   }
-  const pretty = (k) => labelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-  const base = keys.map((k) => ({ name: k, label: pretty(k), field: k, align: 'left', sortable: true, format: (val, row) => formatCell(val, row, k) }))
-  return [
-    ...base,
-    { name: 'actions', label: 'İşlemler', field: 'actions', align: 'right', sortable: false },
-  ]
+  const lowerCaseFilter = filter.value.toLowerCase()
+  return groupedNotes.value.filter(ogrenci => {
+    const adMatch = ogrenci.ogrenci_ad_soyad.toLowerCase().includes(lowerCaseFilter)
+    const dersMatch = ogrenci.notlar.some(not => not.ders_ad.toLowerCase().includes(lowerCaseFilter))
+    return adMatch || dersMatch
+  })
 })
 
 const ogrencilerOptions = computed(() => 
@@ -325,51 +311,4 @@ const ogrencilerOptions = computed(() =>
 const derslerOptions = computed(() => 
   props.dersler.map(d => ({ label: d.ad, value: d.id }))
 )
-
-const formatCell = (val, row, key) => {
-  if (key === 'ogrenci_id') {
-    if (row.ogrenci && row.ogrenci.ad_soyad) return String(row.ogrenci.ad_soyad)
-    return val == null ? '' : String(val)
-  }
-  if (key === 'ders_id') {
-    if (row.ders && row.ders.ad) return String(row.ders.ad)
-    return val == null ? '' : String(val)
-  }
-  if (val == null) return ''
-  if (typeof val === 'object') {
-    const displayKey = ['ad_soyad', 'ad', 'isim', 'name', 'title'].find((k) => k in val)
-    if (displayKey) return String(val[displayKey])
-    return JSON.stringify(val)
-  }
-  return String(val)
-}
-
-const detailEntries = computed(() => {
-  const item = selectedItem.value || {}
-  const hide = ['id', 'ogrenci_id', 'ders_id', 'created_at', 'updated_at']
-  
-  return Object.entries(item)
-    .filter(([k]) => !hide.includes(k))
-    .map(([key, value]) => {
-      // Eğer değer string ise ve JSON formatındaysa parse et
-      let val = value
-      try {
-        if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
-          val = JSON.parse(value)
-        }
-      } catch (error) {
-        console.debug('JSON parse hatası:', error)
-      }
-      
-      // Eğer değer bir obje ise ad_soyad, ad veya name gibi bir alanı al
-      if (val && typeof val === 'object' && !Array.isArray(val)) {
-        const displayKey = ['ad_soyad', 'ad', 'name', 'title'].find(k => k in val)
-        if (displayKey) {
-          val = val[displayKey]
-        }
-      }
-      
-      return [key, val]
-    })
-})
 </script>

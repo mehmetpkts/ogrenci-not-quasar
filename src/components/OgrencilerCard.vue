@@ -3,183 +3,74 @@
     <q-card-section class="row items-center q-pb-sm">
       <div class="text-h6">{{ title }}</div>
       <q-space />
-      <q-btn
-        color="primary"
-        icon="add"
-        label="Yeni Ekle"
-        @click="openAddDialog"
-      />
+      <q-btn color="primary" icon="add" label="Yeni Ekle" @click="openAddDialog" />
     </q-card-section>
 
     <q-card-section>
-      <div
-        class="q-mb-sm"
-        v-if="isArrayOfObjects"
-      >
-        <q-input
-          v-model="filter"
-          dense
-          debounce="300"
-          placeholder="Ara"
-          clearable
-          filled
-        >
+      <div class="q-mb-sm">
+        <q-input v-model="filter" dense debounce="300" placeholder="Ara..." clearable filled>
           <template #append>
             <q-icon name="search" />
           </template>
         </q-input>
       </div>
-      <div
-        v-if="isEmpty"
-        class="text-center text-grey-6 q-pa-lg"
-      >
-        <q-icon
-          name="inbox"
-          size="lg"
-        />
+      <div v-if="isEmpty" class="text-center text-grey-6 q-pa-lg">
+        <q-icon name="inbox" size="lg" />
         <div class="text-h6 q-mt-sm">Veri bulunamadı</div>
       </div>
 
-      <q-table
-        v-else-if="isArrayOfObjects"
-        flat
-        :rows="rows"
-        :columns="columns"
-        :filter="filter"
-        row-key="id"
-      >
-        <template #body-cell-actions="props">
-          <q-td :props="props">
-            <q-btn
-              flat
-              round
-              color="primary"
-              icon="visibility"
-              size="sm"
-              @click="openDetails(props.row)"
-            />
-            <q-btn
-              flat
-              round
-              color="warning"
-              icon="edit"
-              size="sm"
-              @click="openEditDialog(props.row)"
-            />
-            <q-btn
-              flat
-              round
-              color="negative"
-              icon="delete"
-              size="sm"
-              @click="openDeleteDialog(props.row)"
-            />
-          </q-td>
-        </template>
-      </q-table>
+      <div v-else class="row q-col-gutter-md q-mt-md">
+        <div v-for="item in filteredRows" :key="item.id" class="col-12 col-sm-6 col-md-4">
+          <q-card>
+            <q-card-section>
+              <div class="text-h6">{{ item.ad_soyad }}</div>
+              <div class="text-subtitle2 text-grey-7">{{ item.ogrenci_no }}</div>
+            </q-card-section>
+            <q-list dense padding>
+                <q-item>
+                    <q-item-section avatar>
+                        <q-icon name="phone" />
+                    </q-item-section>
+                    <q-item-section>
+                        {{ item.telefon_numarasi || item.telefon }}
+                    </q-item-section>
+                </q-item>
+                <q-item v-if="item.email || item.okul_email">
+                    <q-item-section avatar>
+                        <q-icon name="email" />
+                    </q-item-section>
+                    <q-item-section>
+                        {{ item.okul_email || item.email }}
+                    </q-item-section>
+                </q-item>
+            </q-list>
+            <q-separator />
+            <q-card-actions align="right">
+              <q-btn flat round color="warning" icon="edit" size="sm" @click="openEditDialog(item)" />
+              <q-btn flat round color="negative" icon="delete" size="sm" @click="openDeleteDialog(item)" />
+            </q-card-actions>
+          </q-card>
+        </div>
+      </div>
     </q-card-section>
 
-    <!-- Detay Dialog -->
-    <q-dialog v-model="showDetailsDialog">
-      <q-card style="min-width: 600px">
-        <q-card-section class="row items-center bg-primary text-white q-py-sm">
-          <div class="text-h6">{{ title }} Detayları</div>
-          <q-space />
-          <q-btn
-            icon="close"
-            flat
-            round
-            dense
-            v-close-popup
-          />
-        </q-card-section>
-        <q-card-section class="q-pt-md">
-          <q-list
-            bordered
-            separator
-            v-if="selectedItem"
-          >
-            <q-item
-              v-for="(entry, idx) in detailEntries"
-              :key="idx"
-            >
-              <q-item-section class="col-4 text-weight-medium text-grey-7">{{ prettyKey(entry[0]) }}</q-item-section>
-              <q-item-section>
-                <pre
-                  class="q-ma-none"
-                  style="white-space: pre-wrap"
-                >{{ entry[1] }}</pre>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
-
     <!-- Düzenle Dialog -->
-    <q-dialog
-      v-model="showEditDialog"
-      persistent
-    >
+    <q-dialog v-model="showEditDialog" persistent>
       <q-card style="min-width: 400px">
         <q-card-section class="row items-center bg-primary text-white q-py-sm">
           <div class="text-h6">Öğrenciyi Düzenle</div>
           <q-space />
-          <q-btn
-            icon="close"
-            flat
-            round
-            dense
-            v-close-popup
-          />
+          <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
         <q-card-section>
-          <q-form
-            @submit.prevent="onEditSave"
-            class="q-gutter-md q-pa-md"
-          >
-            <q-input
-              v-model="editItem.ad_soyad"
-              label="Adı Soyadı"
-              filled
-              dense
-              :rules="[(v) => !!v || 'Adı Soyadı zorunlu']"
-            />
-            <q-input
-              v-model="editItem.ogrenci_no"
-              label="Öğrenci No"
-              filled
-              dense
-              :rules="[(v) => !!v || 'Öğrenci No zorunlu']"
-            />
-            <q-input
-              v-model="editItem.telefon"
-              label="Telefon Numarası"
-              filled
-              dense
-              :rules="[(v) => !!v || 'Telefon Numarası zorunlu']"
-            />
-            <q-input
-              v-model="editItem.email"
-              label="E-posta"
-              type="email"
-              filled
-              dense
-            />
+          <q-form @submit.prevent="onEditSave" class="q-gutter-md q-pa-md">
+            <q-input v-model="editItem.ad_soyad" label="Adı Soyadı" filled dense :rules="[(v) => !!v || 'Adı Soyadı zorunlu']" />
+            <q-input v-model="editItem.ogrenci_no" label="Öğrenci No" filled dense :rules="[(v) => !!v || 'Öğrenci No zorunlu']" />
+            <q-input v-model="editItem.telefon" label="Telefon Numarası" filled dense :rules="[(v) => !!v || 'Telefon Numarası zorunlu']" />
+            <q-input v-model="editItem.email" label="E-posta" type="email" filled dense />
             <div class="q-pt-md">
-              <q-btn
-                label="Güncelle"
-                type="submit"
-                color="primary"
-                :loading="savingEdit"
-                :disable="savingEdit"
-              />
-              <q-btn
-                label="İptal"
-                flat
-                class="q-ml-sm"
-                v-close-popup
-              />
+              <q-btn label="Güncelle" type="submit" color="primary" :loading="savingEdit" :disable="savingEdit" />
+              <q-btn label="İptal" flat class="q-ml-sm" v-close-popup />
             </div>
           </q-form>
         </q-card-section>
@@ -187,69 +78,22 @@
     </q-dialog>
 
     <!-- Ekle Dialog -->
-    <q-dialog
-      v-model="showAddDialog"
-      persistent
-    >
+    <q-dialog v-model="showAddDialog" persistent>
       <q-card style="min-width: 400px">
         <q-card-section class="row items-center bg-primary text-white q-py-sm">
           <div class="text-h6">Yeni Öğrenci Ekle</div>
           <q-space />
-          <q-btn
-            icon="close"
-            flat
-            round
-            dense
-            v-close-popup
-          />
+          <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
         <q-card-section>
-          <q-form
-            @submit="onSave"
-            class="q-gutter-md q-pa-md"
-          >
-            <q-input
-              v-model="newItem.ad_soyad"
-              label="Adı Soyadı"
-              filled
-              dense
-              :rules="[(v) => !!v || 'Adı Soyadı zorunlu']"
-            />
-            <q-input
-              v-model="newItem.ogrenci_no"
-              label="Öğrenci No"
-              filled
-              dense
-              :rules="[(v) => !!v || 'Öğrenci No zorunlu']"
-            />
-            <q-input
-              v-model="newItem.telefon"
-              label="Telefon Numarası"
-              filled
-              dense
-              :rules="[(v) => !!v || 'Telefon Numarası zorunlu']"
-            />
-            <q-input
-              v-model="newItem.email"
-              label="E-posta"
-              type="email"
-              filled
-              dense
-            />
+          <q-form @submit="onSave" class="q-gutter-md q-pa-md">
+            <q-input v-model="newItem.ad_soyad" label="Adı Soyadı" filled dense :rules="[(v) => !!v || 'Adı Soyadı zorunlu']" />
+            <q-input v-model="newItem.ogrenci_no" label="Öğrenci No" filled dense :rules="[(v) => !!v || 'Öğrenci No zorunlu']" />
+            <q-input v-model="newItem.telefon" label="Telefon Numarası" filled dense :rules="[(v) => !!v || 'Telefon Numarası zorunlu']" />
+            <q-input v-model="newItem.email" label="E-posta" type="email" filled dense />
             <div class="q-pt-md">
-              <q-btn
-                label="Kaydet"
-                type="submit"
-                color="primary"
-                :loading="saving"
-                :disable="saving"
-              />
-              <q-btn
-                label="İptal"
-                flat
-                class="q-ml-sm"
-                v-close-popup
-              />
+              <q-btn label="Kaydet" type="submit" color="primary" :loading="saving" :disable="saving" />
+              <q-btn label="İptal" flat class="q-ml-sm" v-close-popup />
             </div>
           </q-form>
         </q-card-section>
@@ -257,34 +101,16 @@
     </q-dialog>
 
     <!-- Silme Onay Dialog -->
-    <q-dialog
-      v-model="showDeleteDialog"
-      persistent
-    >
+    <q-dialog v-model="showDeleteDialog" persistent>
       <q-card>
         <q-card-section class="row items-center">
-          <q-avatar
-            icon="warning"
-            color="negative"
-            text-color="white"
-          />
+          <q-avatar icon="warning" color="negative" text-color="white" />
           <span class="q-ml-sm text-h6">Silme Onayı</span>
         </q-card-section>
-        <q-card-section>
-          Bu kaydı kalıcı olarak silmek istediğinizden emin misiniz?
-        </q-card-section>
+        <q-card-section>Bu kaydı kalıcı olarak silmek istediğinizden emin misiniz?</q-card-section>
         <q-card-actions align="right">
-          <q-btn
-            flat
-            label="İptal"
-            color="primary"
-            v-close-popup
-          />
-          <q-btn
-            label="Evet, Sil"
-            color="negative"
-            @click="onDeleteConfirm"
-          />
+          <q-btn flat label="İptal" color="primary" v-close-popup />
+          <q-btn label="Evet, Sil" color="negative" @click="onDeleteConfirm" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -304,23 +130,16 @@ const props = defineProps({
 const emit = defineEmits(['data-changed'])
 const $q = useQuasar()
 
-const showDetailsDialog = ref(false)
 const showAddDialog = ref(false)
 const showDeleteDialog = ref(false)
 const showEditDialog = ref(false)
 
-const selectedItem = ref(null)
 const newItem = ref({})
 const filter = ref('')
 const saving = ref(false)
 const itemToDelete = ref(null)
 const editItem = ref({})
 const savingEdit = ref(false)
-
-const openDetails = (item) => {
-  selectedItem.value = item
-  showDetailsDialog.value = true
-}
 
 const openAddDialog = () => {
   newItem.value = { ad_soyad: '', ogrenci_no: '', telefon: '', email: '' }
@@ -352,9 +171,7 @@ const onSave = async () => {
 
   try {
     saving.value = true
-    const payload = { ad_soyad, ogrenci_no }
-    payload[phoneField.value] = telefon
-    if (email) payload[emailField.value] = email
+    const payload = { ad_soyad, ogrenci_no, [phoneField.value]: telefon, [emailField.value]: email }
     await axios.post('http://localhost:8000/api/ogrenciler', payload)
     $q.notify({ type: 'positive', message: 'Öğrenci başarıyla eklendi.' })
     showAddDialog.value = false
@@ -376,9 +193,7 @@ const onEditSave = async () => {
   }
   try {
     savingEdit.value = true
-    const payload = { ad_soyad, ogrenci_no }
-    payload[phoneField.value] = telefon
-    if (email) payload[emailField.value] = email
+    const payload = { ad_soyad, ogrenci_no, [phoneField.value]: telefon, [emailField.value]: email }
     await axios.put(`http://localhost:8000/api/ogrenciler/${id}`, payload)
     $q.notify({ type: 'positive', message: 'Öğrenci güncellendi.' })
     showEditDialog.value = false
@@ -405,57 +220,29 @@ const onDeleteConfirm = async () => {
 }
 
 const isEmpty = computed(() => props.data.length === 0)
-const isArrayOfObjects = computed(() => props.data.length > 0 && typeof props.data[0] === 'object')
 
 const rows = computed(() => props.data)
 
-// telefon alanı backend'de "telefon" ya da "telefon_numarasi" olabilir
+const filteredRows = computed(() => {
+  if (!filter.value) {
+    return rows.value
+  }
+  const lowerCaseFilter = filter.value.toLowerCase()
+  return rows.value.filter(item => {
+    return Object.values(item).some(val => 
+      String(val).toLowerCase().includes(lowerCaseFilter)
+    )
+  })
+})
+
+// Backend'de alan adlarının tutarlılığını yönetmek için
 const phoneField = computed(() => {
   const sample = props.data?.[0] || {}
   return 'telefon_numarasi' in sample ? 'telefon_numarasi' : 'telefon'
 })
 
-// email alanı backend'de "email" ya da "okul_email" olabilir
 const emailField = computed(() => {
   const sample = props.data?.[0] || {}
   return 'okul_email' in sample ? 'okul_email' : 'email'
-})
-
-// Ortak başlık üretici
-const prettyKey = (k) => {
-  const map = {
-    id: 'ID',
-    ogrenci_no: 'Öğrenci No',
-    ad_soyad: 'Adı Soyadı',
-    telefon: 'Telefon Numarası',
-    telefon_numarasi: 'Telefon Numarası',
-    email: 'E-posta',
-    okul_email: 'Okul E-posta',
-    kayit_tarihi: 'Kayıt Tarihi',
-  }
-  let label = map[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-  // Türkçe karakter düzeltmeleri
-  label = label
-    .replace('Ogrenci', 'Öğrenci')
-    .replace('Egitmen', 'Eğitmen')
-    .replace('Numarasi', 'Numarası')
-  return label
-}
-
-const columns = computed(() => {
-  if (!isArrayOfObjects.value) return []
-  const hidden = ['id', 'created_at', 'updated_at']
-  const keys = Object.keys(props.data[0] || {}).filter(k => !hidden.includes(k))
-  const base = keys.map((k) => ({ name: k, label: prettyKey(k), field: k, align: 'left', sortable: true }))
-  return [
-    ...base,
-    { name: 'actions', label: 'İşlemler', field: 'actions', align: 'right', sortable: false },
-  ]
-})
-
-const detailEntries = computed(() => {
-  const item = selectedItem.value || {}
-  const hide = ['id', 'created_at', 'updated_at']
-  return Object.entries(item).filter(([k]) => !hide.includes(k))
 })
 </script>
